@@ -51,8 +51,8 @@ async function getGiteaUser(gitea) {
     });
 }
 
-function isAlreadyMirroredOnGitea(repository, gitea, giteaUser) {
-  const requestUrl = `${gitea.url}/api/v1/repos/${giteaUser.name}/${repository}`;
+function isAlreadyMirroredOnGitea(repository, gitea, giteaOrg) {
+  const requestUrl = `${gitea.url}/api/v1/repos/${giteaOrg}/${repository}`;
   return request.get(
     requestUrl)
     .set('Authorization', 'token ' + gitea.token)
@@ -60,16 +60,40 @@ function isAlreadyMirroredOnGitea(repository, gitea, giteaUser) {
     .catch(() => false);
 }
 
-function mirrorOnGitea(repository, gitea, giteaUser, githubToken) {
-  request.post(`${gitea.url}/api/v1/repos/migrate`)
+async function ensureOrg(gitea, org, func) {
+
+  await request.get(`${gitea.url}/api/v1/orgs/${org}`)
+    .set('Authorization', 'token ' + gitea.token)
+    .then(func)
+    .catch(() => {
+      console.log(`Creating org: ${org}`)
+      request.post(`${gitea.url}/api/v1/orgs`)
+        .set('Authorization', 'token ' + gitea.token)
+        .send({
+          username: org
+        })
+        .then(func)
+
+    })
+}
+
+async function mirrorOnGitea(repository, gitea, giteaUser, githubToken, giteaOwner) {
+  await request.post(`${gitea.url}/api/v1/repos/migrate`)
     .set('Authorization', 'token ' + gitea.token)
     .send({
       auth_token: githubToken || null,
       clone_addr: repository.url,
       mirror: true,
       repo_name: repository.name,
-      uid: giteaUser.id,
-      private: repository.private
+      repo_owner: giteaOwner,
+      private: repository.private,
+      issues: true,
+      labels: true,
+      lfs: true,
+      milestones: true,
+      pull_requests: true,
+      releases: true,
+      wiki: true
     })
     .then(() => {
       console.log('Did it!');
@@ -80,15 +104,15 @@ function mirrorOnGitea(repository, gitea, giteaUser, githubToken) {
 
 }
 
-async function mirror(repository, gitea, giteaUser, githubToken) {
+async function mirror(repository, gitea, giteaUser, githubToken, giteaOwner) {
   if (await isAlreadyMirroredOnGitea(repository.name,
     gitea,
-    giteaUser)) {
+    giteaOwner)) {
     console.log('Repository is already mirrored; doing nothing: ', repository.name);
     return;
   }
   console.log('Mirroring repository to gitea: ', repository.name);
-  await mirrorOnGitea(repository, gitea, giteaUser, githubToken);
+  await ensureOrg(gitea, giteaOwner,() => mirrorOnGitea(repository, gitea, giteaUser, githubToken, giteaOwner));
 }
 
 async function main() {
@@ -127,12 +151,13 @@ async function main() {
   };
   const giteaUser = await getGiteaUser(gitea);
 
-  const queue = new PQueue({ concurrency: 4 });
+  const queue = new PQueue({ concurrency: 1 });
   await queue.addAll(githubRepositories.map(repository => {
     return async () => {
-      await mirror(repository, gitea, giteaUser, githubToken);
+      await mirror(repository, gitea, giteaUser, githubToken, githubUsername);
     };
   }));
 }
+
 
 main();
