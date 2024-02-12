@@ -96,10 +96,10 @@ async function mirrorOnGitea(repository, gitea, giteaUser, githubToken, giteaOwn
       wiki: true
     })
     .then(() => {
-      console.log('Did it!');
+      console.log(`${repository.name} done.`);
     })
     .catch(err => {
-      console.log('Failed', err);
+      console.log(`${repository.name} Failed: ${err.response.res.statusMessage}`);
     });
 
 }
