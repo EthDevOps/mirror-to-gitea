@@ -141,7 +141,6 @@ async function main() {
     return;
   }
 
-
   const githubRepositories = await getGithubRepositories(githubUsername, githubToken, mirrorPrivateRepositories);
   console.log(`Found ${githubRepositories.length} repositories on github`);
 
