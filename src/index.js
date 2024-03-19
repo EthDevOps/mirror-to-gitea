@@ -14,7 +14,7 @@ async function getGithubRepositories(username, token, mirrorPrivateRepositories,
   const publicRepositoriesWithForks = await octokit.paginate('GET /:usertype/:username/repos', { username: username, usertype: userType })
       .then(repositories => toRepositoryList(repositories));
 
-  let allRepositoriesWithoutForks;
+  let allRepositoriesWithoutForks = [];
   if(mirrorPrivateRepositories === 'true' && !isOrg){
     allRepositoriesWithoutForks = await octokit
         .paginate('GET /user/repos?visibility=public&affiliation=owner&visibility=private')
