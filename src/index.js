@@ -3,18 +3,22 @@ const request = require('superagent');
 const {default: PQueue} = require('p-queue');
 
 
-async function getGithubRepositories(username, token, mirrorPrivateRepositories) {
+async function getGithubRepositories(username, token, mirrorPrivateRepositories, isOrg) {
   const octokit = new Octokit({
     auth: token || null,
   });
+
+  const userType = isOrg ? "orgs" : "users";
+
   
-  const publicRepositoriesWithForks = await octokit.paginate('GET /users/:username/repos', { username: username })
+  const publicRepositoriesWithForks = await octokit.paginate('GET /:usertype/:username/repos', { username: username, usertype: userType })
       .then(repositories => toRepositoryList(repositories));
 
   let allRepositoriesWithoutForks;
-  if(mirrorPrivateRepositories === 'true'){
-  allRepositoriesWithoutForks = await octokit.paginate('GET /user/repos?visibility=public&affiliation=owner&visibility=private')
-    .then(repositories => toRepositoryList(repositories));
+  if(mirrorPrivateRepositories === 'true' && !isOrg){
+    allRepositoriesWithoutForks = await octokit
+        .paginate('GET /user/repos?visibility=public&affiliation=owner&visibility=private')
+        .then(repositories => toRepositoryList(repositories));
   }
 
   if(mirrorPrivateRepositories === 'true'){
@@ -116,11 +120,15 @@ async function mirror(repository, gitea, giteaUser, githubToken, giteaOwner) {
 }
 
 async function main() {
-  const githubUsername = process.env.GITHUB_USERNAME;
+  const githubUsernameAll = process.env.GITHUB_USERNAME.split(':');
+  const githubUsername = githubUsernameAll[0]
   if (!githubUsername) {
     console.error('No GITHUB_USERNAME specified, please specify! Exiting..');
     return;
   }
+
+  const isOrg = githubUsernameAll.length > 0 && githubUsernameAll[1] === "org"
+
   const githubToken = process.env.GITHUB_TOKEN;
   const giteaUrl = process.env.GITEA_URL;
 
@@ -141,7 +149,7 @@ async function main() {
     return;
   }
 
-  const githubRepositories = await getGithubRepositories(githubUsername, githubToken, mirrorPrivateRepositories);
+  const githubRepositories = await getGithubRepositories(githubUsername, githubToken, mirrorPrivateRepositories, isOrg);
   console.log(`Found ${githubRepositories.length} repositories on github`);
 
   const gitea = {
