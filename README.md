@@ -94,6 +94,8 @@ In your Docker Compose file, replace `jaedle/mirror-to-gitea:latest` with `build
 - `GITHUB_USERNAME`: The name of your user or organization which public repos should be mirrored
 - `GITEA_URL`: The url of your gitea server
 - `GITEA_TOKEN`: The token for your gitea user (Settings -> Applications -> Generate New Token)
+- `MIRROR_MODE`: `single` or `yaml`
+- `YAML_URL`: URL to load a yaml file from that lists organisations to mirror under a `orgs` key
 
 ### Optional
 - `GITHUB_TOKEN`: [GitHub personal access token](https://docs.github.com/en/free-pro-team@latest/github/authenticating-to-github/creating-a-personal-access-token). **Attention: if this is set, the token will be transmitted to your specified Gitea instance!**
