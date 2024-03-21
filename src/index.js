@@ -1,6 +1,8 @@
 const {Octokit} = require('@octokit/rest');
 const request = require('superagent');
 const {default: PQueue} = require('p-queue');
+const yaml = require('js-yaml');
+const fs   = require('fs');  
 
 
 async function getGithubRepositories(username, token, mirrorPrivateRepositories, isOrg) {
@@ -119,19 +121,8 @@ async function mirror(repository, gitea, giteaUser, githubToken, giteaOwner) {
   await ensureOrg(gitea, giteaOwner,() => mirrorOnGitea(repository, gitea, giteaUser, githubToken, giteaOwner));
 }
 
-async function main() {
-  const githubUsernameAll = process.env.GITHUB_USERNAME.split(':');
-  const githubUsername = githubUsernameAll[0]
-  if (!githubUsername) {
-    console.error('No GITHUB_USERNAME specified, please specify! Exiting..');
-    return;
-  }
-
-  const isOrg = githubUsernameAll.length > 0 && githubUsernameAll[1] === "org"
-
-  const githubToken = process.env.GITHUB_TOKEN;
+async function createMirrorsOnGites() {
   const giteaUrl = process.env.GITEA_URL;
-
   if (!giteaUrl) {
     console.error('No GITEA_URL specified, please specify! Exiting..');
     return;
@@ -142,16 +133,8 @@ async function main() {
     console.error('No GITEA_TOKEN specified, please specify! Exiting..');
     return;
   }
-
-  const mirrorPrivateRepositories = process.env.MIRROR_PRIVATE_REPOSITORIES;
-  if(mirrorPrivateRepositories === 'true' && !githubToken){
-    console.error('MIRROR_PRIVATE_REPOSITORIES was set to true but no GITHUB_TOKEN was specified, please specify! Exiting..')
-    return;
-  }
-
-  const githubRepositories = await getGithubRepositories(githubUsername, githubToken, mirrorPrivateRepositories, isOrg);
-  console.log(`Found ${githubRepositories.length} repositories on github`);
-
+  
+  const githubToken = process.env.GITHUB_TOKEN;
   const gitea = {
     url: giteaUrl,
     token: giteaToken,
@@ -164,6 +147,77 @@ async function main() {
       await mirror(repository, gitea, giteaUser, githubToken, githubUsername);
     };
   }));
+
 }
 
-main();
+async function singleOrg() {
+  const githubUsernameAll = process.env.GITHUB_USERNAME.split(':');
+  const githubUsername = githubUsernameAll[0]
+  if (!githubUsername) {
+    console.error('No GITHUB_USERNAME specified, please specify! Exiting..');
+    return;
+  }
+
+  const isOrg = githubUsernameAll.length > 0 && githubUsernameAll[1] === "org"
+
+  const githubToken = process.env.GITHUB_TOKEN;
+
+  const mirrorPrivateRepositories = process.env.MIRROR_PRIVATE_REPOSITORIES;
+  if(mirrorPrivateRepositories === 'true' && !githubToken){
+    console.error('MIRROR_PRIVATE_REPOSITORIES was set to true but no GITHUB_TOKEN was specified, please specify! Exiting..')
+    return;
+  }
+
+  const githubRepositories = await getGithubRepositories(githubUsername, githubToken, mirrorPrivateRepositories, isOrg);
+  console.log(`Found ${githubRepositories.length} repositories on github`);
+  await createMirrorsOnGitea(githubRepositories);
+
+}
+
+async function yamlOrg() {
+
+  const yamlPath = process.env.YAML_URL;
+  if (!yamlPath) {
+    console.error('No YAML_URL specified, please specify! Exiting..');
+    return;
+  }
+
+  var yamlContent = await fetch(yamlPath)
+    .then(resp => resp.text())
+
+  var doc = yaml.load(yamlContent);
+
+  const githubToken = process.env.GITHUB_TOKEN;
+
+  const repos = []
+  for(var org of doc.orgs) {
+    console.log(`Fetching org ${org}...`)
+    const githubRepositories = await getGithubRepositories(org, githubToken, false, true);
+    console.log(`\tFound ${githubRepositories.length} repositories on github`);
+    repos.push(...githubRepositories)
+
+  }
+
+  await createMirrorsOnGitea(repos);
+
+}
+
+let mode = "single";
+const modeconfig = process.env.MIRROR_MODE;
+if (modeconfig ) {
+  mode = modeconfig;
+}
+
+if(mode === "single") {
+  console.log("Running in single mode.")
+  singleOrg();
+}
+else if(mode === "yaml") {
+  console.log("running in yaml mode")
+  yamlOrg();
+}
+
+
+
+
+
