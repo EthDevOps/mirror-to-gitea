@@ -118,7 +118,7 @@ async function mirror(repository, gitea, giteaUser, githubToken, giteaOwner) {
     return;
   }
   console.log('Mirroring repository to gitea: ', repository.name);
-  await ensureOrg(gitea, giteaOwner,() => mirrorOnGitea(repository, gitea, giteaUser, githubToken, giteaOwner));
+  await mirrorOnGitea(repository, gitea, giteaUser, githubToken, giteaOwner);
 }
 
 async function createMirrorsOnGitea(githubRepositories, githubUsername) {
@@ -140,13 +140,15 @@ async function createMirrorsOnGitea(githubRepositories, githubUsername) {
     token: giteaToken,
   };
   const giteaUser = await getGiteaUser(gitea);
+  ensureOrg(gitea, giteaOwner,() => {
+    const queue = new PQueue({ concurrency: 1 });
+    await queue.addAll(githubRepositories.map(repository => {
+      return async () => {
+        await mirror(repository, gitea, giteaUser, githubToken, githubUsername);
+      };
+    }));
 
-  const queue = new PQueue({ concurrency: 1 });
-  await queue.addAll(githubRepositories.map(repository => {
-    return async () => {
-      await mirror(repository, gitea, giteaUser, githubToken, githubUsername);
-    };
-  }));
+  })
 
 }
 
