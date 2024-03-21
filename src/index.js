@@ -68,17 +68,23 @@ function isAlreadyMirroredOnGitea(repository, gitea, giteaOrg) {
 
 async function ensureOrg(gitea, org, func) {
 
-  await request.get(`${gitea.url}/api/v1/orgs/${org}`)
+  console.log("\tChecking for existing of " + org)
+  return await request.get(`${gitea.url}/api/v1/orgs/${org}`)
     .set('Authorization', 'token ' + gitea.token)
-    .then(func)
-    .catch(() => {
-      console.log(`Creating org: ${org}`)
-      request.post(`${gitea.url}/api/v1/orgs`)
+    .then(() => {
+      console.log("\t\texists already.")
+    })
+    .catch(async () => {
+      console.log(`\tCreating org: ${org}`)
+      return await request.post(`${gitea.url}/api/v1/orgs`)
         .set('Authorization', 'token ' + gitea.token)
         .send({
           username: org
         })
-        .then(func)
+        .then(() => {
+            console.log("\t\torg created.")
+
+        })
 
     })
 }
@@ -102,10 +108,10 @@ async function mirrorOnGitea(repository, gitea, giteaUser, githubToken, giteaOwn
       wiki: true
     })
     .then(() => {
-      console.log(`${repository.name} done.`);
+      console.log(`\t\t${repository.name} done.`);
     })
     .catch(err => {
-      console.log(`${repository.name} Failed: ${err.response.res.statusMessage}`);
+      console.log(`\t\t${repository.name} Failed: ${err.response.res.statusMessage}`);
     });
 
 }
@@ -114,14 +120,14 @@ async function mirror(repository, gitea, giteaUser, githubToken, giteaOwner) {
   if (await isAlreadyMirroredOnGitea(repository.name,
     gitea,
     giteaOwner)) {
-    console.log('Repository is already mirrored; doing nothing: ', repository.name);
+    console.log('\tRepository is already mirrored; doing nothing: ', repository.name);
     return;
   }
-  console.log('Mirroring repository to gitea: ', repository.name);
+  console.log('\tMirroring repository to gitea: ', repository.name);
   await mirrorOnGitea(repository, gitea, giteaUser, githubToken, giteaOwner);
 }
 
-async function createMirrorsOnGitea(githubRepositories, githubUsername) {
+async function createMirrorsOnGitea(repos, githubUsername) {
   const giteaUrl = process.env.GITEA_URL;
   if (!giteaUrl) {
     console.error('No GITEA_URL specified, please specify! Exiting..');
@@ -140,15 +146,15 @@ async function createMirrorsOnGitea(githubRepositories, githubUsername) {
     token: giteaToken,
   };
   const giteaUser = await getGiteaUser(gitea);
-  await ensureOrg(gitea, githubUsername, async () => {
-    const queue = new PQueue({ concurrency: 1 });
-    await queue.addAll(githubRepositories.map(repository => {
-      return async () => {
-        await mirror(repository, gitea, giteaUser, githubToken, githubUsername);
-      };
-    }));
+  await ensureOrg(gitea, githubUsername)
 
-  })
+  console.log("\tCreating Mirrors for " + githubUsername)
+  for(let r of repos) {
+    await mirror(r, gitea, giteaUser, githubToken, githubUsername);
+  }
+  console.log("\tdone with " + githubUsername)
+
+
 
 }
 
