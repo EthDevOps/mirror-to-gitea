@@ -140,7 +140,7 @@ async function createMirrorsOnGitea(githubRepositories, githubUsername) {
     token: giteaToken,
   };
   const giteaUser = await getGiteaUser(gitea);
-  ensureOrg(gitea, giteaOwner,async () => {
+  ensureOrg(gitea, githubUsername, async () => {
     const queue = new PQueue({ concurrency: 1 });
     await queue.addAll(githubRepositories.map(repository => {
       return async () => {
