@@ -125,6 +125,7 @@ async function mirror(repository, gitea, giteaUser, githubToken, giteaOwner) {
   }
   console.log('\tMirroring repository to gitea: ', repository.name);
   await mirrorOnGitea(repository, gitea, giteaUser, githubToken, giteaOwner);
+  await delay(2500)
 }
 
 async function createMirrorsOnGitea(repos, githubUsername) {
