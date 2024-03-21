@@ -121,7 +121,7 @@ async function mirror(repository, gitea, giteaUser, githubToken, giteaOwner) {
   await ensureOrg(gitea, giteaOwner,() => mirrorOnGitea(repository, gitea, giteaUser, githubToken, giteaOwner));
 }
 
-async function createMirrorsOnGites() {
+async function createMirrorsOnGitea() {
   const giteaUrl = process.env.GITEA_URL;
   if (!giteaUrl) {
     console.error('No GITEA_URL specified, please specify! Exiting..');
