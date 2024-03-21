@@ -121,7 +121,7 @@ async function mirror(repository, gitea, giteaUser, githubToken, giteaOwner) {
   await ensureOrg(gitea, giteaOwner,() => mirrorOnGitea(repository, gitea, giteaUser, githubToken, giteaOwner));
 }
 
-async function createMirrorsOnGitea(githubRepositories) {
+async function createMirrorsOnGitea(githubRepositories, githubUsername) {
   const giteaUrl = process.env.GITEA_URL;
   if (!giteaUrl) {
     console.error('No GITEA_URL specified, please specify! Exiting..');
@@ -170,7 +170,7 @@ async function singleOrg() {
 
   const githubRepositories = await getGithubRepositories(githubUsername, githubToken, mirrorPrivateRepositories, isOrg);
   console.log(`Found ${githubRepositories.length} repositories on github`);
-  await createMirrorsOnGitea(githubRepositories);
+  await createMirrorsOnGitea(githubRepositories, githubUsername);
 
 }
 
@@ -195,14 +195,11 @@ async function yamlOrg() {
     const githubRepositories = await getGithubRepositories(org, githubToken, false, true);
     console.log(`\tFound ${githubRepositories.length} repositories on github`);
     repos.push(...githubRepositories)
+    
+    await createMirrorsOnGitea(repos, org);
     console.log("waiting 60sec...")
     await delay(60000);
-
-
   }
-
-  await createMirrorsOnGitea(repos);
-
 }
 
 let mode = "single";
