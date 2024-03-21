@@ -189,8 +189,8 @@ async function yamlOrg() {
 
   const githubToken = process.env.GITHUB_TOKEN;
 
-  const repos = []
   for(var org of doc.orgs) {
+    const repos = []
     console.log(`Fetching org ${org}...`)
     const githubRepositories = await getGithubRepositories(org, githubToken, false, true);
     console.log(`\tFound ${githubRepositories.length} repositories on github`);
