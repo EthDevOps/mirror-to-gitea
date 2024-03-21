@@ -4,7 +4,7 @@ const {default: PQueue} = require('p-queue');
 const yaml = require('js-yaml');
 const fs   = require('fs');  
 
-
+const delay = ms => new Promise(res => setTimeout(res, ms));
 async function getGithubRepositories(username, token, mirrorPrivateRepositories, isOrg) {
   const octokit = new Octokit({
     auth: token || null,
@@ -195,6 +195,9 @@ async function yamlOrg() {
     const githubRepositories = await getGithubRepositories(org, githubToken, false, true);
     console.log(`\tFound ${githubRepositories.length} repositories on github`);
     repos.push(...githubRepositories)
+    console.log("waiting 60sec...")
+    await delay(60000);
+
 
   }
 
