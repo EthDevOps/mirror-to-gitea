@@ -90,7 +90,7 @@ async function ensureOrg(gitea, org, func) {
 }
 
 async function mirrorOnGitea(repository, gitea, giteaUser, githubToken, giteaOwner) {
-  await request.post(`${gitea.url}/api/v1/repos/migrate`)
+  const mirror_ok = await request.post(`${gitea.url}/api/v1/repos/migrate`)
     .set('Authorization', 'token ' + gitea.token)
     .send({
       auth_token: githubToken || null,
@@ -109,10 +109,28 @@ async function mirrorOnGitea(repository, gitea, giteaUser, githubToken, giteaOwn
     })
     .then(() => {
       console.log(`\t\t${repository.name} done.`);
+      return true;
     })
     .catch(err => {
       console.log(`\t\t${repository.name} Failed: ${err.response.res.statusMessage}`);
+      return false;
     });
+
+  if(!mirror_ok) {
+    console.log(`\tRetrying ${repository.name} in 10sec`);
+    await delay(10000);
+
+    // Delete repo
+    console.log('\tDeleting bad repo...')
+    await request.delete(`${gitea.url}/api/v1/repos/${giteaOwner}/${repository.name}`)
+      .set('Authorization', 'token ' + gitea.token)
+      .then(async () => {
+        await delay(5000);
+        console.log("\tRetrying...")
+        await mirrorOnGitea(repository, gitea, giteaUser, githubToken, giteaOwner)
+      })
+
+  }
 
 }
 
