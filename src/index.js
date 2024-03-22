@@ -89,7 +89,7 @@ async function ensureOrg(gitea, org, func) {
     })
 }
 
-async function mirrorOnGitea(repository, gitea, giteaUser, githubToken, giteaOwner) {
+async function mirrorOnGitea(repository, gitea, giteaUser, githubToken, giteaOwner, retry) {
   const mirror_ok = await request.post(`${gitea.url}/api/v1/repos/migrate`)
     .set('Authorization', 'token ' + gitea.token)
     .send({
@@ -116,7 +116,7 @@ async function mirrorOnGitea(repository, gitea, giteaUser, githubToken, giteaOwn
       return false;
     });
 
-  if(!mirror_ok) {
+  if(!mirror_ok && !retry) {
     console.log(`\tRetrying ${repository.name} in 10sec`);
     await delay(10000);
 
@@ -127,7 +127,7 @@ async function mirrorOnGitea(repository, gitea, giteaUser, githubToken, giteaOwn
       .then(async () => {
         await delay(5000);
         console.log("\tRetrying...")
-        await mirrorOnGitea(repository, gitea, giteaUser, githubToken, giteaOwner)
+        await mirrorOnGitea(repository, gitea, giteaUser, githubToken, giteaOwner, true)
       })
 
   }
@@ -142,7 +142,7 @@ async function mirror(repository, gitea, giteaUser, githubToken, giteaOwner) {
     return;
   }
   console.log('\tMirroring repository to gitea: ', repository.name);
-  await mirrorOnGitea(repository, gitea, giteaUser, githubToken, giteaOwner);
+  await mirrorOnGitea(repository, gitea, giteaUser, githubToken, giteaOwner, false);
   await delay(2500)
 }
 
