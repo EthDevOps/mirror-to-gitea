@@ -124,12 +124,15 @@ async function mirrorOnGitea(repository, gitea, giteaUser, githubToken, giteaOwn
     console.log('\tDeleting bad repo...')
     await request.delete(`${gitea.url}/api/v1/repos/${giteaOwner}/${repository.name}`)
       .set('Authorization', 'token ' + gitea.token)
-      .then(async () => {
-        await delay(5000);
-        console.log("\tRetrying...")
-        await mirrorOnGitea(repository, gitea, giteaUser, githubToken, giteaOwner, true)
-      })
+      .then(() => console.log('\t\tdeleted.'))
+      .catch(err => {
+        const status = err.response && err.response.status;
+        console.log(`\t\tDelete failed (continuing): ${status || err.message}`);
+      });
 
+    await delay(5000);
+    console.log("\tRetrying...")
+    await mirrorOnGitea(repository, gitea, giteaUser, githubToken, giteaOwner, true)
   }
 
 }
