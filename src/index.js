@@ -5,29 +5,48 @@ const yaml = require('js-yaml');
 const fs   = require('fs');  
 
 const delay = ms => new Promise(res => setTimeout(res, ms));
-async function getGithubRepositories(username, token, mirrorPrivateRepositories, isOrg) {
+
+// If set, only public github repositories are mirrored, regardless of what
+// the used GITHUB_TOKEN would grant access to.
+const mirrorPublicRepositoriesOnly = process.env.MIRROR_PUBLIC_REPOSITORIES_ONLY === 'true';
+
+async function getGithubRepositories(username, token, mirrorPrivateRepositories, isOrg, mirrorPublicRepositoriesOnly) {
   const octokit = new Octokit({
     auth: token || null,
   });
 
   const userType = isOrg ? "orgs" : "users";
 
-  
+
   const publicRepositoriesWithForks = await octokit.paginate('GET /:usertype/:username/repos', { username: username, usertype: userType })
       .then(repositories => toRepositoryList(repositories));
 
   let allRepositoriesWithoutForks = [];
-  if(mirrorPrivateRepositories === 'true' && !isOrg){
+  if(mirrorPrivateRepositories === 'true' && !isOrg && !mirrorPublicRepositoriesOnly){
     allRepositoriesWithoutForks = await octokit
         .paginate('GET /user/repos?visibility=public&affiliation=owner&visibility=private')
         .then(repositories => toRepositoryList(repositories));
   }
 
+  let repositories;
   if(mirrorPrivateRepositories === 'true'){
-    return filterDuplicates(allRepositoriesWithoutForks.concat(publicRepositoriesWithForks));
+    repositories = filterDuplicates(allRepositoriesWithoutForks.concat(publicRepositoriesWithForks));
   }else{
-    return publicRepositoriesWithForks;
+    repositories = publicRepositoriesWithForks;
   }
+
+  // A GITHUB_TOKEN also grants access to private repositories in the listings
+  // above, so filter them out explicitly when only public ones are wanted.
+  if(mirrorPublicRepositoriesOnly){
+    const publicRepositories = repositories.filter(repository => !repository.private);
+    const skipped = repositories.length - publicRepositories.length;
+    if(skipped > 0){
+      console.log(`\tSkipping ${skipped} private repositories (MIRROR_PUBLIC_REPOSITORIES_ONLY is set)`);
+    }
+    return publicRepositories;
+  }
+
+  return repositories;
 }
 
 function toRepositoryList(repositories) {
@@ -198,7 +217,11 @@ async function singleOrg() {
     return;
   }
 
-  const githubRepositories = await getGithubRepositories(githubUsername, githubToken, mirrorPrivateRepositories, isOrg);
+  if(mirrorPublicRepositoriesOnly && mirrorPrivateRepositories === 'true'){
+    console.log('MIRROR_PUBLIC_REPOSITORIES_ONLY is set, ignoring MIRROR_PRIVATE_REPOSITORIES.');
+  }
+
+  const githubRepositories = await getGithubRepositories(githubUsername, githubToken, mirrorPrivateRepositories, isOrg, mirrorPublicRepositoriesOnly);
   console.log(`Found ${githubRepositories.length} repositories on github`);
   await createMirrorsOnGitea(githubRepositories, githubUsername);
 
@@ -222,7 +245,7 @@ async function yamlOrg() {
   for(var org of doc.orgs) {
     const repos = []
     console.log(`Fetching org ${org}...`)
-    const githubRepositories = await getGithubRepositories(org, githubToken, false, true);
+    const githubRepositories = await getGithubRepositories(org, githubToken, false, true, mirrorPublicRepositoriesOnly);
     console.log(`\tFound ${githubRepositories.length} repositories on github`);
     repos.push(...githubRepositories)
     

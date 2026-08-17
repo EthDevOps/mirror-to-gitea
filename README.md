@@ -55,6 +55,7 @@ services:
           - GITEA_TOKEN=please-exchange-with-token
           #- GITHUB_TOKEN=please-exchange-with-token # Optional, set to mirror private repos
           #- MIRROR_PRIVATE_REPOSITORIES=true # Optional, set to mirror private repos
+          #- MIRROR_PUBLIC_REPOSITORIES_ONLY=true # Optional, set to mirror only public repos
           # - DELAY=3600 # Optional, set to change the delay between checks (in seconds)
         container_name: mirror-to-gitea
 ```
@@ -100,6 +101,7 @@ In your Docker Compose file, replace `jaedle/mirror-to-gitea:latest` with `build
 ### Optional
 - `GITHUB_TOKEN`: [GitHub personal access token](https://docs.github.com/en/free-pro-team@latest/github/authenticating-to-github/creating-a-personal-access-token). **Attention: if this is set, the token will be transmitted to your specified Gitea instance!**
 - `MIRROR_PRIVATE_REPOSITORIES`: If set to `true`, your private GitHub repositories will also be mirrored to gitea. The `GITHUB_TOKEN` parameter must be set for this to work.
+- `MIRROR_PUBLIC_REPOSITORIES_ONLY`: If set to `true`, only public GitHub repositories are mirrored. Private repositories the `GITHUB_TOKEN` has access to are skipped, and `MIRROR_PRIVATE_REPOSITORIES` is ignored. Works in both `single` and `yaml` mode.
 - `DELAY`: How often to check for new repositories in seconds. Default is 3600 (1 hour).
 
 ## Things to do
